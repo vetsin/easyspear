@@ -1,0 +1,45 @@
+<div class="list-group">
+	<div class="list-group-item" ng-repeat="auction in followed">
+		<h3>{{auction.name}}</h3>
+		<p><span time-ago="auction.date_time.$date"></span>
+		<div class="list-group-item" ng-repeat="item in auction.items">
+			<div class="row">
+				<div class="col-md-3">
+					<a href="/auction/{{item.auction_name}}/{{ item.item_id }}/image" target="_blank"><img ng-src="/auction/{{item.auction_name}}/{{ item.item_id }}/image" class="img-thumbnail " width="100%"/></a>
+				</div>
+				<div class="col-md-8">
+					<h3>{{item.price|currency}}</h3>
+					<p>{{item.description}}</p>
+					<span>High Bidder : {{ item.high_bidder }}</span><br/>
+					<span>Bids : {{ item.bids }}</span><br/>
+					<span>Last Updated : <span time-ago="item.last_modified.$date" tooltip="{{item.last_modified.$date|date:'MM/dd/yyyy @ h:mma':PST}}"></span></span><br/>
+					<a href="http://server2.maxanet.com/cgi-bin/mnlist.cgi?{{item.auction_name}}/{{item.item_id}}" target="_blank">Direct Link</a>
+
+					<form class="form-inline" ng-controller="BidController">
+						<div class="form-group">
+							<label class="sr-only" for="bidder_number">Email address</label>
+							<input type="bidder_number" class="form-control" id="bidder_number" ng-model="data.bidder_number" placeholder="Bidder Number">
+						</div>
+						<div class="form-group">
+							<label class="sr-only" for="bidder_password">Password</label>
+							<input type="password" class="form-control" id="bidder_password" ng-model="data.bidder_password" placeholder="Password">
+						</div>
+						<div class="form-group">
+							<label class="sr-only" for="max_bid">Amount (in dollars)</label>
+							<div class="input-group">
+								<div class="input-group-addon">$</div>
+								<input type="text" class="form-control" id="max_bid" placeholder="Amount" ng-model="data.max_bid| currency" >
+							</div>
+						</div>
+						<button type="submit" class="btn btn-primary" ng-click="submitBid(data)">Set Bid</button>
+					</form>
+					<div>
+						<button class="btn btn-danger" ng-click="followToggle(item)">{{ item.followed ? "Unfollow" : "Follow" }}</button>
+
+						<button type="button" class="btn btn-primary" ng-click="refresh(item)">Refresh</button>
+					</div>
+				</div>
+			</div>
+		</div>
+	</div>
+</div>

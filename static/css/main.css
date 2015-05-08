@@ -1,0 +1,88 @@
+body {
+	padding: 0;
+}
+html {
+	overflow-y: scroll;
+}
+.main {
+	margin-top:51px;
+}
+.header {
+	background-color: #428bca; 
+	color: #fff;
+}
+.navbar {
+/*	background-image: linear-gradient(to bottom, #428bca 0px, #428bca 100%) !important; */
+	margin: 0 !important;
+	border-radius: 0 !important;
+}
+.item {
+	width: 20%;
+}
+.grid-sizer {
+	width: 20%;
+}
+.image {
+	max-width:100%;
+	margin:0;
+	display:block;
+}
+.thumb {
+	float: left;
+	display: block;
+}
+.itemlist {
+	padding-left: 20px;
+	display: block;
+}
+
+@media screen and (max-width: 1224px) {
+	.grid-sizer { width: 33.33%; }
+	.item { width: 33.33%; }
+}
+
+@media screen and (max-width: 720px) {
+	.grid-sizer { width: 50%; }
+	.item { width: 50%; }
+}
+
+@media screen and (max-width: 480px) {
+	.grid-sizer { width: 100%; }
+	.item { width: 100%; }
+}
+
+
+.overlay {
+	width: 100%;
+	height: 100%;
+	position: absolute;
+	top: 0;
+	left: 0;
+	display: none;
+}
+
+.overlay .quickbar {
+	float: left;
+	margin-left:10px;
+}
+
+.overlay .title {
+	text-align: right;
+	font-size: 30px;
+	margin-right:10px;
+	color:#FFF;
+}
+.overlay .description {
+	position: absolute;
+	bottom: 0;
+	left: 0;
+	background-color: rgba(0,0,0,0.80);
+	width:100%;
+	margin: 0;
+}
+.overlay .description p {
+	margin: 10px;
+}
+.item:hover .overlay {
+	display: block;
+}

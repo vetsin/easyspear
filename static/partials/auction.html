@@ -1,0 +1,22 @@
+<div collapse="isCollapsed">
+	<div class="">Some content</div> 
+</div>
+
+<div masonry="">
+	<div class="grid-sizer"></div>
+
+    <div class="masonry-brick item" ng-repeat="item in items ">
+        <img ng-src="/auction/{{item.auction_name}}/{{ item.item_id }}/image" class="image" >
+		<div class="overlay" >
+			<ul class="quickbar">
+				<li><button ng-click="followToggle(item)">{{ item.followed ? "Unfollow" : "Follow" }}</button></li>
+			</ul>
+			<h3 class="title">{{item.price|currency}}</h3>
+			<a class="description" href="http://server2.maxanet.com/cgi-bin/mnlist.cgi?{{item.auction_name}}/{{item.item_id}}" target="_blank">
+				<p>{{item.description}}</p>
+			</a>
+		</div>
+    </div>
+</div>
+
+<div scroll-trigger="loadNext()" threshold="100"></div>
