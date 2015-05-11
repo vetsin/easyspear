@@ -17,7 +17,7 @@ bower install
 # Running
 
 `mongod` and 
-`celery worker` in project dir
+`celery worker -B` in project dir
 `python server.py` then browse
 
 ### TODO

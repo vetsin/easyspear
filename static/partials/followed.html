@@ -1,7 +1,8 @@
 <div class="list-group">
 	<div class="list-group-item" ng-repeat="auction in followed">
 		<h3>{{auction.name}}</h3>
-		<p><span time-ago="auction.date_time.$date"></span>
+		<p>
+		Ends <time-ago date="{{auction.end.$date}}"></time-ago>
 		<div class="list-group-item" ng-repeat="item in auction.items">
 			<div class="row">
 				<div class="col-md-3">
@@ -12,7 +13,7 @@
 					<p>{{item.description}}</p>
 					<span>High Bidder : {{ item.high_bidder }}</span><br/>
 					<span>Bids : {{ item.bids }}</span><br/>
-					<span>Last Updated : <span time-ago="item.last_modified.$date" tooltip="{{item.last_modified.$date|date:'MM/dd/yyyy @ h:mma':PST}}"></span></span><br/>
+					<span>Last Updated : <time-ago date="{{item.last_modified.$date}}"></time-ago></span><br/>
 					<a href="http://server2.maxanet.com/cgi-bin/mnlist.cgi?{{item.auction_name}}/{{item.item_id}}" target="_blank">Direct Link</a>
 
 					<form class="form-inline" ng-controller="BidController">
@@ -28,11 +29,12 @@
 							<label class="sr-only" for="max_bid">Amount (in dollars)</label>
 							<div class="input-group">
 								<div class="input-group-addon">$</div>
-								<input type="text" class="form-control" id="max_bid" placeholder="Amount" ng-model="data.max_bid| currency" >
+								<input type="text" class="form-control" id="max_bid" placeholder="Amount" ng-model="data.max_bid" >
 							</div>
 						</div>
 						<button type="submit" class="btn btn-primary" ng-click="submitBid(data)">Set Bid</button>
 					</form>
+					<br />
 					<div>
 						<button class="btn btn-danger" ng-click="followToggle(item)">{{ item.followed ? "Unfollow" : "Follow" }}</button>
 

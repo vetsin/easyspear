@@ -1,19 +1,12 @@
 var controllers = angular.module('MainApp.controllers', []);
 
-controllers.controller('MainController', ['$scope', '$http', function ($scope, $http) {
+controllers.controller('MainController', ['$scope', '$http', '$routeParams', function ($scope, $http, $routeParams) {
 	$scope.isCollapsed = true;
 	$scope.filterEnabled = false;
 
-
-	$scope.refreshAuction = function(id) {
-		$http.get("/auction/" + id + "/refresh").success(function (data) {
-			//
-		});
-	}
-}]);
-
-controllers.controller('ListController', ['$scope', '$http', 'Auction', function ($scope, $http, Auction) {
-	$scope.auctions = Auction.query();
+	$scope.$on("$routeChangeStart", function(event, next, current) {
+		$scope.isAuction = (next.controller == "AuctionController")
+	});
 
 	$scope.refresh = function() {
 		$http.get("/refresh").success(function(data) {
@@ -21,6 +14,16 @@ controllers.controller('ListController', ['$scope', '$http', 'Auction', function
 		});
 	}
 
+	$scope.refreshAuction = function(auction_name) {
+		var name = (typeof auction_name !== 'undefined') ? auction_name : $routeParams.name
+		$http.get("/auction/" + name + "/refresh").success(function (data) {
+			//
+		});
+	}
+}]);
+
+controllers.controller('ListController', ['$scope', '$http', 'Auction', function ($scope, $http, Auction) {
+	$scope.auctions = Auction.query();
 }]);
 
 controllers.controller('AuctionController', ['$scope', '$routeParams', 'Auction', 'Item', '$http', 'itemFactory',  function ($scope, $routeParams, Auction, Item, $http, itemFactory) {
@@ -48,6 +51,7 @@ controllers.controller('AuctionController', ['$scope', '$routeParams', 'Auction'
 	}
 
 	$scope.refresh = function() {
+	console.log('debug me')
 		$scope.refreshAuction($routeParams.name);	
 	}
 
@@ -60,16 +64,22 @@ controllers.controller('FollowController', ['$scope', '$http', 'itemFactory', fu
 		$http.get('/auction').success(function(auctions, status) {
 
 			$http.get('/followed').success(function(followed, status) {
+				
+				followedAuctions = [];
 
 				for (var i = 0; i < auctions.length; i++) {
 					auctions[i].items = [];
 					for (var j = 0; j < followed.length; j++) {
 						if (followed[j].auction_name == auctions[i].name) {
-							auctions[i].items.push(followed[j])
+							// check if we're 'using' this auction
+							if(followedAuctions.indexOf(auctions[i]) == -1) {
+								followedAuctions.push(auctions[i]);
+							}
+							followedAuctions[followedAuctions.indexOf(auctions[i])].items.push(followed[j]);
 						}
 					}
 				}
-				$scope.followed = auctions;
+				$scope.followed = followedAuctions;
 			});
 		});
 	};
@@ -92,7 +102,7 @@ controllers.controller('BidController', ['$scope', '$http', function($scope, $ht
 	$scope.data = {
 		auction_name: $scope.item.auction_name,
 		item_id: $scope.item.item_id,
-		bidder_user: "",
+		bidder_number: "",
 		bidder_password: "",
 		max_bid: $scope.item.next_price
 	};

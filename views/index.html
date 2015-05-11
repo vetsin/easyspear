@@ -1,3 +1,9 @@
 <%inherit file="base.html"/>
+<div collapse="isCollapsed">
+	<div class="expanded-menu">
+		<button type="button" class="btn btn-info" ng-click="refresh()">Refresh Auction List</button>
+		<button type="button" class="btn btn-info" ng-click="refreshAuction()" ng-disabled="!isAuction">Refresh Auction</button>
+	</div>
+</div>
 <div class="main" ng-view>
 </div>

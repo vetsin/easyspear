@@ -1,9 +1,11 @@
 <div class="list-group">
-	<a href="#/auction/{{auction.name}}" class="list-group-item " ng-repeat="auction in auctions">
+	<a href="#/auction/{{auction.name}}" class="list-group-item " ng-repeat="auction in auctions | orderBy:'+end.$date'">
 		<h4 class="list-group-item-heading">{{auction.name}} - {{auction.location}}</h4>
 		<span style="font-weight:bold">{{auction.title}}</span>
 		<p class="list-group-item-text">{{auction.highlights}}</p>
-		<p>Ends in <span time-ago="auction.date_time.$date" tooltip="{{auction.date_time.$date|date:'MM/dd/yyyy @ h:mma':PST}}"></p>
+		<p>Start: <time-ago date="{{auction.begin.$date}}"></time-ago> - {{auction.begin.$date|date:'MM/dd/yyyy @ h:mma PST':PST}}
+		<br />
+		End: <time-ago date="{{auction.end.$date}}"></time-ago> - {{auction.end.$date|date:'MM/dd/yyyy @ h:mma PST':PST}}</p>
 		<button type="button" class="btn btn-xs btn-default" ng-click="refreshAuction(auction.name)">
 			<span class="glyphicon glyphicon-refresh" aria-hidden="true"></span>
 			Refresh

@@ -16,6 +16,11 @@ html {
 	margin: 0 !important;
 	border-radius: 0 !important;
 }
+.expanded-menu {
+	color: #000;
+	margin-top:50px;
+	padding: 10px;
+}
 .item {
 	width: 20%;
 }

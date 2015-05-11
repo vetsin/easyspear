@@ -69,14 +69,20 @@ easyspear.directive('scrollTrigger', function($window) {
 easyspear.directive('timeAgo', ['NotificationService',
 function(NotificationService) {
     return {
-        template: '<span>{{timeAgo}}</span>',
-        replace: true,
+        //template: '<span>{{timeStr}}</span>',
+        //replace: true,
+		//scope: {
+	//		test: '=date'
+	//	},
         link: function(scope, element, attrs) {
-            var updateTime = function() {
-                scope.timeAgo = moment(scope.$eval(attrs.timeAgo)).fromNow();
+            var updateTime = function(myElement, myAttrs) {
+                //scope.timeStr = moment(String(attrs.timeAgo), "x").calendar();
+				//console.log(element)
+				//return moment(myAttrs.date, "x").calendar();
+				myElement.text(moment(myAttrs.date, "x").calendar())
             }
-            NotificationService.onTimeAgo(scope, updateTime); // subscribe
-            updateTime();
+            NotificationService.onTimeAgo(scope, element, attrs, updateTime); // subscribe
+            updateTime(element, attrs);
         }
     }
 }])

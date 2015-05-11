@@ -16,12 +16,13 @@ class Auction(Document):
 	contact = StringField()
 	#last_modified = DateTimeField(default=datetime.datetime.utcnow)
 	last_modified = DateTimeField()
+	last_scraped = DateTimeField()
 	begin = DateTimeField()
 	end = DateTimeField()
 
 
 class Item(Document):
-	item_id = StringField()
+	item_id = StringField(unique_with=['auction_name'])
 	auction_name = StringField()
 	photo = ImageField()
 	description = StringField()
@@ -34,11 +35,16 @@ class Item(Document):
 	last_modified = DateTimeField()
 
 class Bid(Document):
-	auction_name = StringField()
+	auction_name = StringField(unique_with=['item_id'])
 	item_id = StringField()
 	max_bid = DecimalField()
 	#Bidder Information
 	bidder_number = StringField()
 	bidder_password = StringField()
 	last_modified = DateTimeField()
+	is_running = BooleanField(default=False)
+
+class Lock(Document):
+	token = StringField(unique=True)
+	is_running = BooleanField(default=False)
 

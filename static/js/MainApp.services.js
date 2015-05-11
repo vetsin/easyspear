@@ -14,8 +14,14 @@ services.factory("Item", ['$resource',
 	}
 ]);
 /* Service for real-time updates */
-services.factory("TaskService", ['$rootScope', function($rootScope) {
-	
+services.factory("TaskService", ['$rootScope', '$http', function($rootScope, $http) {
+	return {
+		checkTask: function(task_id) {
+			$http.get('/tasks/' + task_id).success(function (data) {
+				//
+			});
+		}
+	}
 }]);
 
 /* Service for displaying 'happened x seconds ago' */
@@ -34,9 +40,10 @@ services.factory("NotificationService", ['$rootScope', function($rootScope) {
 		//pub
 		timeAgoTick: timeAgoTick,
 		//sub
-		onTimeAgo: function($scope, handler) {
+		onTimeAgo: function($scope, element, attrs, handler) {
 			$scope.$on(TIME_AGO_TICK, function() {
-				handler();
+				//$scope.timeStr = handler(attrs);
+				handler(element, attrs);
 			});
 		}
 	}
