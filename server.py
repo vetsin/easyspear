@@ -183,7 +183,6 @@ def process_bids():
 
 		if (datetime.utcnow() - auction_end) > timedelta(seconds = 60):
 			task = bid_watch.apply_async(args=["{0}".format(item.id), str(bid.id)])
-			print(task)
 			#print("Started bid_watch for {0}".format(bid.id))
 		else:
 			pass
