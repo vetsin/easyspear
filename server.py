@@ -408,13 +408,12 @@ def check_task(task_id):
 
 @route('/status')
 def handle_websocket():
-	body = Queue()
 	wsock = request.environ.get('wsgi.websocket')
 	if not wsock:
 		abort(400, 'Expected WebSocket request.')
 	taskmon.addws(wsock)
 	#taskWatcher.register(wsock)
-	return body
+	return ""
 	
 
 def signal_handler(signal, frame):
