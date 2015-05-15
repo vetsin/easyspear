@@ -1,6 +1,6 @@
 var controllers = angular.module('MainApp.controllers', []);
 
-controllers.controller('MainController', ['$scope', '$http', '$routeParams', function ($scope, $http, $routeParams) {
+controllers.controller('MainController', ['$scope', '$http', '$routeParams', 'TaskData', function ($scope, $http, $routeParams, TaskData) {
 	$scope.isCollapsed = true;
 	$scope.filterEnabled = false;
 
@@ -10,6 +10,10 @@ controllers.controller('MainController', ['$scope', '$http', '$routeParams', fun
 
 	$scope.refresh = function() {
 		$http.get("/refresh").success(function(data) {
+			TaskData.register(data.task_id, function(result) {
+				console.log("res: ");
+				console.log(result);
+			});
 			//
 		});
 	}
@@ -17,12 +21,14 @@ controllers.controller('MainController', ['$scope', '$http', '$routeParams', fun
 	$scope.refreshAuction = function(auction_name) {
 		var name = (typeof auction_name !== 'undefined') ? auction_name : $routeParams.name
 		$http.get("/auction/" + name + "/refresh").success(function (data) {
-			//
+			TaskService.register(data.task_id, function(task_data) {
+				
+			});
 		});
 	}
 }]);
 
-controllers.controller('ListController', ['$scope', '$http', 'Auction', function ($scope, $http, Auction) {
+controllers.controller('ListController', ['$scope', 'TaskService', 'Auction', function ($scope, TaskService, Auction) {
 	$scope.auctions = Auction.query();
 }]);
 

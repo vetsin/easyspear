@@ -14,12 +14,35 @@ services.factory("Item", ['$resource',
 	}
 ]);
 /* Service for real-time updates */
-services.factory("TaskService", ['$rootScope', '$http', function($rootScope, $http) {
-	return {
-		checkTask: function(task_id) {
+services.factory("TaskService", ['$q', '$http', 'TaskData', function($q, $http, TaskData) {
+
+	var outstanding = {};
+
+	function updateTask(task_id) {
+		return $q(function(resolve, reject) {
 			$http.get('/tasks/' + task_id).success(function (data) {
-				//
+				resolve(data);
+			}).error(function(data) {
+				reject(data);
 			});
+		});
+	}
+	
+	function processTask(task_id, cb) {
+		var promise = updateTask(task_id);
+		promise.then(function(task_data) {
+			// update ui
+			// return data
+			cb(task_data);
+		}, function(reason) {
+			// error
+			console.error(reason);
+		});
+	}
+
+	return {
+		register: function(task_id, cb) {
+			processTask(task_id, cb);
 		}
 	}
 }]);

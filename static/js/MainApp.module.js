@@ -1,5 +1,10 @@
-var easyspear = angular.module('MainApp', ['MainApp.controllers', 'MainApp.services', 'ngRoute', 'wu.masonry', 'ui.bootstrap'])
+var easyspear = angular.module('MainApp', [
+	'MainApp.controllers', 'MainApp.services', 'ngRoute', 
+	'wu.masonry', 'ui.bootstrap', 'angular-websocket'
+]);
 
+
+// Routes
 easyspear.config(['$routeProvider', function($routeProvider) {
 		$routeProvider.when('/list', {
 			templateUrl: 'static/partials/list.html',
@@ -26,7 +31,42 @@ easyspear.filter('startFrom', function() {
 		return input.slice(start);
 	}
 });
+
 // Factories
+easyspear.factory('TaskData', ['$websocket', function($websocket) {
+	var ws = $websocket('ws://' + window.location.host + '/status');
+
+	var tasks = {};
+	ws.onOpen(function(message) {
+		console.log('ws opened');
+	});
+
+	ws.onMessage(function(message) {
+		console.log('got message')
+		var msg = JSON.parse(message.data);
+		if (tasks[msg.task_id]) {
+			tasks[msg.task_id](msg); // call cb
+			// remove
+			delete tasks[msg.task_id];
+		} else {
+			console.log("Unregistered task event occured");
+		}
+		console.log(message);
+	});
+
+	ws.onClose(function(message) {
+		console.log('ws closed')
+	});
+
+	
+	return {
+		register: function(task_id, cb) {
+			tasks[task_id] = cb;
+			//console.log("registered: " + tasks[task_id])
+		}
+	}
+}]);
+
 easyspear.factory('itemFactory', ['$http', function($http) {
 	return {
 		followToggle : function(item) {
@@ -66,6 +106,7 @@ easyspear.directive('scrollTrigger', function($window) {
 		}
 	}
 });
+
 easyspear.directive('timeAgo', ['NotificationService',
 function(NotificationService) {
     return {

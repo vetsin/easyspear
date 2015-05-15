@@ -1,30 +1,121 @@
-from bottle import route, run, template, get, post, debug, static_file, response, request
+from bottle import route, run, template, get, post, debug, static_file, response, request, abort, default_app
+from gevent.pywsgi import WSGIServer
+from gevent.queue import Queue
+
+from gwebsocket import WebSocketError
+from gwebsocket.server import WebSocketServer
+from gwebsocket.handler import WebSocketHandler
+from gwebsocket.resource import WebSocketApplication, Resource
+
 from mako.template import Template
 from mako.lookup import TemplateLookup
+
 from models import *
+
 from celery import Celery
 from celery.result import AsyncResult
 from celery.exceptions import TimeoutError
-import requests, re, logging
+
+import requests, re, logging, json, time
 from bs4 import BeautifulSoup
 from decimal import Decimal
-import json
-import time
 from datetime import datetime, timedelta
 from StringIO import StringIO
 from PIL import Image
-import signal, sys
+import signal, sys, threading
 from hashlib import md5
 from time import sleep
 
 BROKER_URL = 'mongodb://localhost:27017/tasks'
-
 SERVER = 'http://server2.maxanet.com/cgi-bin'
-## celery
 
+## celery
 celery = Celery()
 import celeryconfig
 celery.config_from_object(celeryconfig)
+
+
+class TaskMonitor(threading.Thread):
+	def __init__(self, celery):
+		threading.Thread.__init__(self)
+		self.daemon = True
+		self.celery = celery
+		self.state = celery.events.State()
+		self.wsocks = []
+		self.lock = threading.Lock()
+
+	def notify_success(self, event):
+		self.state.event(event)
+		task = self.state.tasks.get(event['uuid'])
+		res = task.result
+		if res:
+			try:
+				data = json.loads(res.strip("'")) # why the ' celery?
+				name = data['name']
+				toRemove = []
+				for wsock in self.wsocks:
+					try:
+						print(task)
+						'''wsock.send(json.dumps({
+							'task_id':task.uuid, 
+							'status':None,
+							'data':None
+						}))'''
+						wsock.send('test')
+					except WebSocketError, e:
+						print(e)
+						print(wsock)
+						toRemove.append(wsock)
+				for wsock in toRemove:
+					self.delws(wsock)
+			except Exception:
+				#print(sys.exc_info()[0])
+				pass
+
+	def run(self):
+		with self.celery.connection() as connection:
+			recv = self.celery.events.Receiver(connection, handlers={
+				'task-succeeded': self.notify_success,
+			})
+			recv.capture(limit=None, timeout=None, wakeup=False)
+
+	def addws(self, wsock):
+		with self.lock:
+			self.wsocks.append(wsock)
+			print('registered ws')
+		
+	def delws(self, wsock):
+		with self.lock:
+			self.wsocks.remove(wsock)
+			print('removed ws')
+
+class TaskWatcher(object):
+	def __init__(self):
+		self.sockets = []
+		#self.lock = Lock() #yolo - dont want to figure out how to lock between app and celery
+
+	def register(self, wsock):
+		self.sockets.append(wsock)
+
+	def remove(self, wsock):
+		self.sockets.remove(wsock)
+	
+	def notify(self, task_id, status, data):
+		toRemove = []
+		for wsock in self.sockets:
+			try:
+				wsock.send(json.dumps({
+					'task_id':task_id, 
+					'status':status,
+					'data':data
+				}))
+			except WebSocketError:
+				toRemove.append(wsock)
+				continue
+		for wsock in toRemove:
+			self.remove(wsock)
+
+# helper methods
 
 def auction_time_parse(timestr):
 	now = datetime.now()	
@@ -40,12 +131,15 @@ def auction_list_time_parse(timestr):
 	utctimetuple = time.gmtime(time.mktime(timefmt))
 	return datetime(*utctimetuple[0:6])
 
-class Result(object):
-	def __init__(self, message=""):
-		self.message = message
-	
+def parse_field(value):
+	v = value.get_text().strip().decode('ascii')
+	if len(v) > 0:
+		return v
+	return None
+
 @celery.task(name='tasks.auction_list_scrape')
 def auction_list_scrape():
+	''' update list of auctions '''
 	print("Updating auction list")
 	res = requests.get('http://rlspear.com/auction_list.php')
 	soup = BeautifulSoup(res.text)
@@ -63,10 +157,11 @@ def auction_list_scrape():
 			auctionobj.end = end
 			auctionobj.last_modified = datetime.utcnow
 			auctionobj.save()
-	return "Auction List Updated - {0} entries updated".format(len(auctions))
+	return json.dumps({ 'name': 'auction_list_scrape', 'data': Auction.objects.to_json() })
 
 @celery.task(name='tasks.auction_scrape')
 def auction_scrape(auctionId, begin=None, end=None):
+	''' Scrape a specific auction '''
 	print("Updating auction %s" % auctionId)
 	# TODO: limit updates for a given auction to ~5 minutes
 
@@ -104,17 +199,12 @@ def auction_scrape(auctionId, begin=None, end=None):
 			i = i.get_text().strip('.')
 			item_scrape.apply_async(args=[auctionId, i])
 			
-	return { 'id':auctionId }
-
-def parse_field(value):
-	v = value.get_text().strip().decode('ascii')
-	if len(v) > 0:
-		return v
-	return None
+	return json.dumps({ 'name': 'auction_scrape', 'data': auction })
 	
 
 @celery.task(name='tasks.item_scrape')
 def item_scrape(auctionId, itemId):
+	''' scrape a specific item '''
 	res = requests.get("%s/mnlist.cgi?%s/%s" % (SERVER, auctionId, itemId))
 	soup = BeautifulSoup(res.text)
 	if not soup.find_all(text="No data found"):
@@ -142,13 +232,14 @@ def item_scrape(auctionId, itemId):
 			print(e)
 		item.last_modified = datetime.utcnow
 		item.save()
-	return item
+	return json.dumps({ 'name': 'item_scrape', 'data': item })
 
 @celery.task(name='tasks.item_bid')
 def item_bid(auctionId, itemId, bidder_number, bidder_password, max_bid=0):
+	''' bid an item '''
 	# http://docs.celeryproject.org/en/latest/tutorials/task-cookbook.html#cookbook-task-serial
 	res = requests.get("http://localhost:8080/")
-	return {'res':res}
+	return json.dumps({ 'name': 'item_bid', 'data': res})
 
 @celery.task(name='tasks.bid_watch', ignore_result=True)
 def bid_watch(item_id, bid_id):
@@ -170,7 +261,7 @@ def bid_watch(item_id, bid_id):
 		finally:
 			release_lock()
 			print("{0} released".format(bid.id))
-		return {}
+		return json.dumps({'name': 'bid_watch', 'data': None})
 	
 
 @celery.task(name='tasks.process_bids', ignore_result=True)
@@ -187,11 +278,11 @@ def process_bids():
 		else:
 			pass
 			#print("waiting bid_watch for {0}".format(bid.id))
-	return {}
+	return json.dumps({ 'name': 'process_bids', 'data': None })
 	
 ## bottle
 
-mylookup = TemplateLookup(directories=['./views'], output_encoding='utf-8',)
+mylookup = TemplateLookup(directories=['./views'], output_encoding='utf-8',) #TODO: remove template engine
 
 def serve_template(templatename, **kwargs):
   mytemplate = mylookup.get_template(templatename)
@@ -216,14 +307,12 @@ def auction_list():
 @get('/refresh')
 def auction_refresh():
 	task = auction_list_scrape.apply_async()
-	print(task)
 	return { 'task_id': task.id }
 		
 
 @get('/auction/:auctionId')
 def auction_get(auctionId):
-	#return json.dumps(Auction.objects(name=auctionId))
-	return Auction.objects(name=auctionId)[0].to_json()
+	return Auction.objects(name=auctionId)[0].to_json() #TODO: try .first()
 
 @get('/auction/:auctionId/list')
 def auction_items(auctionId):
@@ -235,14 +324,12 @@ def auction_items(auctionId):
 
 @get('/auction/:auctionId/refresh')
 def auction_refresh(auctionId):
-	#app.auction_scrape.apply_async(args=[auctionId])	
 	task = auction_scrape.apply_async(args=[auctionId])
 	return { 'task_id': task.id }
 
 @get('/auction/:auctionId/:itemId')
 def item_get(auctionId, itemId):
 	item = Item.objects(auction_name=auctionId,item_id=itemId)[0]
-	#item.src = "/auction/%s/%s/image" % (auctionId, itemId)
 	return item.to_json()
 
 @get('/auction/:auctionId/:itemId/follow')
@@ -313,18 +400,35 @@ def check_task(task_id):
 	task = AsyncResult(task_id)
 	message = None
 	try:
-		return message = task.get(timeout=10)
+		message = task.get(timeout=10)
 	except TimeoutError:
 		message = 'processing'
 
 	return {'task_id':task_id, 'status':task.state}
-		
+
+@route('/status')
+def handle_websocket():
+	body = Queue()
+	wsock = request.environ.get('wsgi.websocket')
+	if not wsock:
+		abort(400, 'Expected WebSocket request.')
+	taskmon.addws(wsock)
+	#taskWatcher.register(wsock)
+	return body
+	
 
 def signal_handler(signal, frame):
 	sys.exit(0)
-	
 
 debug(True)
 if __name__ == '__main__':
 	signal.signal(signal.SIGINT, signal_handler)
-	run(host='0.0.0.0', port=8080)
+	server = WSGIServer(("0.0.0.0", 8080), default_app(), handler_class=WebSocketHandler)
+	#res = Resource({
+	#	'^/task': TaskWatcher,
+	#	'^/.*': default_app()
+	#});
+	#server = WebSocketServer(("0.0.0.0", 8080), res, debug=True)
+	taskmon = TaskMonitor(celery)
+	taskmon.start()
+	server.serve_forever()
