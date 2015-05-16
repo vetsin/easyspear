@@ -17,6 +17,8 @@ from celery.result import AsyncResult
 from celery.exceptions import TimeoutError
 
 import requests, re, logging, json, time
+from bson.json_util import dumps
+import traceback # DEBUG
 from bs4 import BeautifulSoup
 from decimal import Decimal
 from datetime import datetime, timedelta
@@ -41,7 +43,7 @@ class TaskMonitor(threading.Thread):
 		self.daemon = True
 		self.celery = celery
 		self.state = celery.events.State()
-		self.wsocks = []
+		self.wsocks = {}
 		self.lock = threading.Lock()
 
 	def notify_success(self, event):
@@ -53,24 +55,28 @@ class TaskMonitor(threading.Thread):
 				data = json.loads(res.strip("'")) # why the ' celery?
 				name = data['name']
 				toRemove = []
-				for wsock in self.wsocks:
-					try:
-						print(task)
-						'''wsock.send(json.dumps({
-							'task_id':task.uuid, 
-							'status':None,
-							'data':None
-						}))'''
-						wsock.send('test')
-					except WebSocketError, e:
-						print(e)
-						print(wsock)
-						toRemove.append(wsock)
+				if name == "process_bids": # ignore
+					return	
+
+				with self.lock:
+					for wsock in self.wsocks:
+						body  = self.wsocks[wsock]
+						try:
+							#print(task)
+							wsock.send(json.dumps({
+								'task_id':task.uuid, 
+								'name': name,
+								'status':'SUCCESS',
+								#'data':None #NO
+							}))
+						except WebSocketError, e:
+							toRemove.append(wsock)
 				for wsock in toRemove:
 					self.delws(wsock)
-			except Exception:
-				#print(sys.exc_info()[0])
+			except Exception, e:
+				#traceback.print_exc()
 				pass
+					
 
 	def run(self):
 		with self.celery.connection() as connection:
@@ -79,41 +85,16 @@ class TaskMonitor(threading.Thread):
 			})
 			recv.capture(limit=None, timeout=None, wakeup=False)
 
-	def addws(self, wsock):
+	def addws(self, wsock, body):
 		with self.lock:
-			self.wsocks.append(wsock)
-			print('registered ws')
+			self.wsocks[wsock] = body
+			#print('registered ws')
 		
 	def delws(self, wsock):
 		with self.lock:
-			self.wsocks.remove(wsock)
-			print('removed ws')
-
-class TaskWatcher(object):
-	def __init__(self):
-		self.sockets = []
-		#self.lock = Lock() #yolo - dont want to figure out how to lock between app and celery
-
-	def register(self, wsock):
-		self.sockets.append(wsock)
-
-	def remove(self, wsock):
-		self.sockets.remove(wsock)
-	
-	def notify(self, task_id, status, data):
-		toRemove = []
-		for wsock in self.sockets:
-			try:
-				wsock.send(json.dumps({
-					'task_id':task_id, 
-					'status':status,
-					'data':data
-				}))
-			except WebSocketError:
-				toRemove.append(wsock)
-				continue
-		for wsock in toRemove:
-			self.remove(wsock)
+			body = self.wsocks.pop(wsock)
+			body.put(StopIteration) #close it out
+			#print('removed ws')
 
 # helper methods
 
@@ -157,7 +138,7 @@ def auction_list_scrape():
 			auctionobj.end = end
 			auctionobj.last_modified = datetime.utcnow
 			auctionobj.save()
-	return json.dumps({ 'name': 'auction_list_scrape', 'data': Auction.objects.to_json() })
+	return json.dumps({ 'name': 'auction_list_scrape'})
 
 @celery.task(name='tasks.auction_scrape')
 def auction_scrape(auctionId, begin=None, end=None):
@@ -199,7 +180,7 @@ def auction_scrape(auctionId, begin=None, end=None):
 			i = i.get_text().strip('.')
 			item_scrape.apply_async(args=[auctionId, i])
 			
-	return json.dumps({ 'name': 'auction_scrape', 'data': auction })
+	return json.dumps({ 'name': 'auction_scrape'})
 	
 
 @celery.task(name='tasks.item_scrape')
@@ -232,7 +213,7 @@ def item_scrape(auctionId, itemId):
 			print(e)
 		item.last_modified = datetime.utcnow
 		item.save()
-	return json.dumps({ 'name': 'item_scrape', 'data': item })
+	return json.dumps({ 'name': 'item_scrape'})
 
 @celery.task(name='tasks.item_bid')
 def item_bid(auctionId, itemId, bidder_number, bidder_password, max_bid=0):
@@ -261,7 +242,7 @@ def bid_watch(item_id, bid_id):
 		finally:
 			release_lock()
 			print("{0} released".format(bid.id))
-		return json.dumps({'name': 'bid_watch', 'data': None})
+		return json.dumps({'name': 'bid_watch'})
 	
 
 @celery.task(name='tasks.process_bids', ignore_result=True)
@@ -278,7 +259,7 @@ def process_bids():
 		else:
 			pass
 			#print("waiting bid_watch for {0}".format(bid.id))
-	return json.dumps({ 'name': 'process_bids', 'data': None })
+	return json.dumps({ 'name': 'process_bids'})
 	
 ## bottle
 
@@ -408,12 +389,13 @@ def check_task(task_id):
 
 @route('/status')
 def handle_websocket():
+	body = Queue()
 	wsock = request.environ.get('wsgi.websocket')
 	if not wsock:
 		abort(400, 'Expected WebSocket request.')
-	taskmon.addws(wsock)
+	taskmon.addws(wsock, body)
 	#taskWatcher.register(wsock)
-	return ""
+	return body
 	
 
 def signal_handler(signal, frame):

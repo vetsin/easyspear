@@ -1,35 +1,46 @@
 var controllers = angular.module('MainApp.controllers', []);
 
-controllers.controller('MainController', ['$scope', '$http', '$routeParams', 'TaskData', function ($scope, $http, $routeParams, TaskData) {
+controllers.controller('MainController', ['$scope', '$http', '$routeParams', 'TaskData', 'AuctionService', function ($scope, $http, $routeParams, TaskData, AuctionService) {
 	$scope.isCollapsed = true;
 	$scope.filterEnabled = false;
+	$scope.isLoading = false;
 
 	$scope.$on("$routeChangeStart", function(event, next, current) {
 		$scope.isAuction = (next.controller == "AuctionController")
 	});
 
 	$scope.refresh = function() {
+		AuctionService.refresh();
+	};
+	/*
 		$http.get("/refresh").success(function(data) {
 			TaskData.register(data.task_id, function(result) {
+				if (result.status == 'SUCCESS') {
+					console.log('Refresh task success');
+					
+					
+				}
 				console.log("res: ");
 				console.log(result);
 			});
 			//
 		});
-	}
+	*/
 
 	$scope.refreshAuction = function(auction_name) {
 		var name = (typeof auction_name !== 'undefined') ? auction_name : $routeParams.name
 		$http.get("/auction/" + name + "/refresh").success(function (data) {
-			TaskService.register(data.task_id, function(task_data) {
-				
+			TaskData.register(data.task_id, function(task_data) {
+				console.log(task_data);
 			});
 		});
 	}
 }]);
 
-controllers.controller('ListController', ['$scope', 'TaskService', 'Auction', function ($scope, TaskService, Auction) {
-	$scope.auctions = Auction.query();
+controllers.controller('ListController', ['$scope', 'AuctionService', 'Auction', function ($scope, AuctionService, Auction) {
+	$scope.auctions = function() {
+		return AuctionService.auctions();
+	}
 }]);
 
 controllers.controller('AuctionController', ['$scope', '$routeParams', 'Auction', 'Item', '$http', 'itemFactory',  function ($scope, $routeParams, Auction, Item, $http, itemFactory) {

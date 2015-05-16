@@ -1,5 +1,5 @@
 <div class="list-group">
-	<a href="#/auction/{{auction.name}}" class="list-group-item " ng-repeat="auction in auctions | orderBy:'+end.$date'">
+	<a href="#/auction/{{auction.name}}" class="list-group-item " ng-repeat="auction in auctions() | orderBy:'+end.$date'">
 		<h4 class="list-group-item-heading">{{auction.name}} - {{auction.location}}</h4>
 		<span style="font-weight:bold">{{auction.title}}</span>
 		<p class="list-group-item-text">{{auction.highlights}}</p>

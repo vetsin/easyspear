@@ -42,16 +42,15 @@ easyspear.factory('TaskData', ['$websocket', function($websocket) {
 	});
 
 	ws.onMessage(function(message) {
-		console.log('got message')
 		var msg = JSON.parse(message.data);
 		if (tasks[msg.task_id]) {
 			tasks[msg.task_id](msg); // call cb
 			// remove
 			delete tasks[msg.task_id];
 		} else {
-			console.log("Unregistered task event occured");
+			console.log("Unregistered task " + msg.task_id + " event occured");
 		}
-		console.log(message);
+		//console.log(message);
 	});
 
 	ws.onClose(function(message) {
@@ -62,7 +61,7 @@ easyspear.factory('TaskData', ['$websocket', function($websocket) {
 	return {
 		register: function(task_id, cb) {
 			tasks[task_id] = cb;
-			//console.log("registered: " + tasks[task_id])
+			console.log("registered: " + task_id)
 		}
 	}
 }]);

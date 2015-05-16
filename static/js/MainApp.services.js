@@ -14,36 +14,25 @@ services.factory("Item", ['$resource',
 	}
 ]);
 /* Service for real-time updates */
-services.factory("TaskService", ['$q', '$http', 'TaskData', function($q, $http, TaskData) {
-
-	var outstanding = {};
-
-	function updateTask(task_id) {
-		return $q(function(resolve, reject) {
-			$http.get('/tasks/' + task_id).success(function (data) {
-				resolve(data);
-			}).error(function(data) {
-				reject(data);
-			});
-		});
-	}
-	
-	function processTask(task_id, cb) {
-		var promise = updateTask(task_id);
-		promise.then(function(task_data) {
-			// update ui
-			// return data
-			cb(task_data);
-		}, function(reason) {
-			// error
-			console.error(reason);
-		});
-	}
-
+services.factory("AuctionService", ['Auction', 'TaskData', '$http', function(Auction, TaskData, $http) {
+	// private
+	var auctions = [];
+	// public
 	return {
-		register: function(task_id, cb) {
-			processTask(task_id, cb);
-		}
+		auctions: function() {
+			auctions = Auction.query();
+			return auctions;
+		},
+		refresh: function() {
+			$http.get("/refresh").success(function(data) {
+				TaskData.register(data.task_id, function(result) {
+					if (result.status == 'SUCCESS') {
+						console.log('Server auction listing refreshed');
+						auctions = Auction.query();
+					}
+				});
+			});
+		},
 	}
 }]);
 
