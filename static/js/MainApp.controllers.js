@@ -1,55 +1,43 @@
 var controllers = angular.module('MainApp.controllers', []);
 
-controllers.controller('MainController', ['$scope', '$http', '$routeParams', 'TaskData', 'AuctionService', function ($scope, $http, $routeParams, TaskData, AuctionService) {
+controllers.controller('MainController', ['$scope', '$http', '$routeParams', 'TaskData', 'AuctionService', 'Loading', function ($scope, $http, $routeParams, TaskData, AuctionService, Loading) {
 	$scope.isCollapsed = true;
 	$scope.filterEnabled = false;
-	$scope.isLoading = false;
+
+	$scope.isLoading = function() {
+		return Loading.isLoading();
+	};
 
 	$scope.$on("$routeChangeStart", function(event, next, current) {
 		$scope.isAuction = (next.controller == "AuctionController")
 	});
 
 	$scope.refresh = function() {
-		AuctionService.refresh();
+		AuctionService.refreshList();
 	};
-	/*
-		$http.get("/refresh").success(function(data) {
-			TaskData.register(data.task_id, function(result) {
-				if (result.status == 'SUCCESS') {
-					console.log('Refresh task success');
-					
-					
-				}
-				console.log("res: ");
-				console.log(result);
-			});
-			//
-		});
-	*/
 
-	$scope.refreshAuction = function(auction_name) {
+	$scope.refreshAuction = function() {
 		var name = (typeof auction_name !== 'undefined') ? auction_name : $routeParams.name
-		$http.get("/auction/" + name + "/refresh").success(function (data) {
-			TaskData.register(data.task_id, function(task_data) {
-				console.log(task_data);
-			});
-		});
-	}
+		AuctionService.refreshAuction(name);	
+	};
 }]);
 
-controllers.controller('ListController', ['$scope', 'AuctionService', 'Auction', function ($scope, AuctionService, Auction) {
+controllers.controller('ListController', ['$scope', 'AuctionService', function ($scope, AuctionService) {
 	$scope.auctions = function() {
-		return AuctionService.auctions();
+		return AuctionService.auctionList();
 	}
 }]);
 
-controllers.controller('AuctionController', ['$scope', '$routeParams', 'Auction', 'Item', '$http', 'itemFactory',  function ($scope, $routeParams, Auction, Item, $http, itemFactory) {
+controllers.controller('AuctionController', ['$scope', '$routeParams', 'AuctionService', 'Item', '$http', 'itemFactory',  function ($scope, $routeParams, AuctionService, Item, $http, itemFactory) {
+
 	$scope.auctionId = $routeParams.name;
-	$scope.auctions = Auction.get({name: $routeParams.name});
 	$scope.back = function() { window.history.back() };
 	$scope.currentPage = 0;
 	$scope.pageSize = 20;
-	$scope.numberOfPages = $scope.auctions.items / $scope.pageSize;
+	AuctionService.auction($routeParams.name, function(auction) {
+		$scope.numberOfPages = auction.items / $scope.pageSize;
+	});
+
 	$scope.items = []
 	
 	$scope.fetch = function() {
@@ -68,8 +56,8 @@ controllers.controller('AuctionController', ['$scope', '$routeParams', 'Auction'
 	}
 
 	$scope.refresh = function() {
-	console.log('debug me')
-		$scope.refreshAuction($routeParams.name);	
+		AuctionService.refreshAuction($routeParams.name);
+		//$scope.refreshAuction($routeParams.name);	
 	}
 
 	$scope.fetch();

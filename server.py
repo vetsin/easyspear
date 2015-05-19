@@ -251,7 +251,7 @@ def process_bids():
 		# schedule active Bids to start up to 30 seconds before bidding starts
 		item = Item.objects(auction_name=bid.auction_name, item_id=bid.item_id).first()
 		auction = Auction.objects(name=bid.auction_name).first()
-		auction_end = auction.end
+		auction_end = auction.end if auction else datetime.utcnow()
 
 		if (datetime.utcnow() - auction_end) > timedelta(seconds = 60):
 			task = bid_watch.apply_async(args=["{0}".format(item.id), str(bid.id)])

@@ -1,4 +1,7 @@
 <%inherit file="base.html"/>
+<div collapse="!isLoading()" class="loadingBar">
+	<img src="/static/img/ajax-loader.gif"/>
+</div>
 <div collapse="isCollapsed">
 	<div class="expanded-menu">
 		<button type="button" class="btn btn-info" ng-click="refresh()">Refresh Auction List</button>

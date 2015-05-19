@@ -21,6 +21,12 @@ html {
 	margin-top:50px;
 	padding: 10px;
 }
+.loadingBar {
+	background-color: #5bc0de;
+	margin-top: 50px;
+	padding: 10px;
+	text-align: center;
+}
 .item {
 	width: 20%;
 }

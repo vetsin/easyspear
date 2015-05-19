@@ -33,7 +33,7 @@ easyspear.filter('startFrom', function() {
 });
 
 // Factories
-easyspear.factory('TaskData', ['$websocket', function($websocket) {
+easyspear.factory('TaskData', ['$websocket', 'Loading', function($websocket, Loading) {
 	var ws = $websocket('ws://' + window.location.host + '/status');
 
 	var tasks = {};
@@ -47,6 +47,7 @@ easyspear.factory('TaskData', ['$websocket', function($websocket) {
 			tasks[msg.task_id](msg); // call cb
 			// remove
 			delete tasks[msg.task_id];
+			Loading.complete();
 		} else {
 			console.log("Unregistered task " + msg.task_id + " event occured");
 		}
@@ -57,16 +58,17 @@ easyspear.factory('TaskData', ['$websocket', function($websocket) {
 		console.log('ws closed')
 	});
 
-	
 	return {
 		register: function(task_id, cb) {
 			tasks[task_id] = cb;
 			console.log("registered: " + task_id)
+			Loading.add();
 		}
 	}
 }]);
 
 easyspear.factory('itemFactory', ['$http', function($http) {
+	//TODO: move into the Item resource
 	return {
 		followToggle : function(item) {
 			item.followed = !item.followed; // a white lie

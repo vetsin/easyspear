@@ -13,22 +13,52 @@ services.factory("Item", ['$resource',
 		});
 	}
 ]);
+services.factory("Loading", [function() {
+	var count = 0;
+	return {
+		add: function() {
+			count++;
+		},
+		complete: function() {
+			count--;
+		},
+		isLoading: function() {
+			return (count != 0)
+		},
+	}
+}]);
 /* Service for real-time updates */
 services.factory("AuctionService", ['Auction', 'TaskData', '$http', function(Auction, TaskData, $http) {
 	// private
-	var auctions = [];
+	var auctionList = Auction.query();
 	// public
 	return {
-		auctions: function() {
-			auctions = Auction.query();
-			return auctions;
+		auctionList: function() {
+			//auctions = Auction.query();
+			return auctionList;
 		},
-		refresh: function() {
+		auction: function(auction_name, cb) {
+			return Auction.get({name:auction_name}, cb);
+		},
+		refreshList: function() {
 			$http.get("/refresh").success(function(data) {
 				TaskData.register(data.task_id, function(result) {
 					if (result.status == 'SUCCESS') {
 						console.log('Server auction listing refreshed');
-						auctions = Auction.query();
+						auctionList = Auction.query();
+					}
+				});
+			});
+		},
+		refreshAuction: function(auction_name, cb) {
+			$http.get("/auction/" + auction_name + "/refresh").success(function (data) {
+				TaskData.register(data.task_id, function(task_data) {
+					if (result.status == 'SUCCESS') {
+						console.log('Updated auction: ' + auction_name);
+						// just update the list again
+						auctionList = Auction.query(); 
+						// then the auction...
+						return Auction.get({name:auction_name}, cb);
 					}
 				});
 			});
